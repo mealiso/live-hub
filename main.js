@@ -1,56 +1,40 @@
-// HTML'deki elementleri seçiyoruz
 const videoElement = document.getElementById('liveVideo');
 const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
+const linkContainer = document.getElementById('linkContainer');
+const shareLinkInput = document.getElementById('shareLink');
 
-// Medya akışını (stream) tutacağımız değişken
 let localStream;
+let peer;
 
-// Yayını Başlatma Fonksiyonu
 async function startStream() {
     try {
-        // Kullanıcıdan kamera ve mikrofon izni istiyoruz
-        const constraints = {
-            video: true,
-            audio: true
-        };
-
-        // Kameradan gelen veriyi alıyoruz
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        // Gelen akışı (stream) video elementine bağlıyoruz
+        // 1. Kamerayı aç
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         videoElement.srcObject = localStream;
 
-        // Buton durumlarını güncelliyoruz
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        
-        console.log("Kamera ve mikrofon başarıyla açıldı, yayın hazır.");
+        // 2. PeerJS ile sunucuya bağlan (Rastgele ID oluşturur)
+        peer = new Peer(); 
 
-    } catch (error) {
-        console.error("Medyaya erişilirken hata oluştu:", error);
-        alert("Kamera veya mikrofona erişilemedi. Lütfen izinleri kontrol edin.");
+        peer.on('open', (id) => {
+            // 3. GitHub Pages linkine kendi ID'mizi ekleyip paylaşım linki oluşturuyoruz
+            const watchUrl = `https://mealiso.github.io/live-hub/watch.html?room=${id}`;
+            shareLinkInput.value = watchUrl;
+            linkContainer.style.display = 'block';
+            startBtn.disabled = true;
+            startBtn.innerText = "Yayın Devam Ediyor...";
+        });
+
+        // 4. Biri bizim odamıza bağlandığında ne olacak?
+        peer.on('connection', (conn) => {
+            console.log("Yeni bir izleyici geldi:", conn.peer);
+            // İzleyiciye kendi video/ses yayınımızı (localStream) gönderiyoruz
+            peer.call(conn.peer, localStream);
+        });
+
+    } catch (err) {
+        console.error("Kamera açılamadı:", err);
+        alert("Kameraya izin vermeniz gerekiyor.");
     }
 }
 
-// Yayını Durdurma Fonksiyonu
-function stopStream() {
-    if (localStream) {
-        // Akıştaki tüm yolları (video ve ses track'lerini) tek tek durduruyoruz
-        const tracks = localStream.getTracks();
-        tracks.forEach(track => track.stop());
-
-        // Video elementini temizliyoruz
-        videoElement.srcObject = null;
-
-        // Buton durumlarını güncelliyoruz
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-
-        console.log("Yayın durduruldu.");
-    }
-}
-
-// Butonlara tıklanma olaylarını (event listener) ekliyoruz
 startBtn.addEventListener('click', startStream);
-stopBtn.addEventListener('click', stopStream);

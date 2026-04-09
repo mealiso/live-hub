@@ -3,83 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canlı Yayın Paneli</title>
+    <title>Canlı Yayın Başlat</title>
+    <!-- PeerJS Kütüphanesi -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .video-container {
-            background-color: #000;
-            border: 2px solid #333;
-            border-radius: 8px;
-            overflow: hidden;
-            width: 80%;
-            max-width: 800px;
-            aspect-ratio: 16/9;
-            margin-bottom: 20px;
-        }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .controls {
-            display: flex;
-            gap: 15px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        #startBtn {
-            background-color: #e50914;
-            color: white;
-        }
-        #startBtn:hover {
-            background-color: #b20710;
-        }
-        #stopBtn {
-            background-color: #555;
-            color: white;
-        }
-        #stopBtn:hover {
-            background-color: #333;
-        }
-        #stopBtn:disabled {
-            background-color: #222;
-            cursor: not-allowed;
-            color: #666;
-        }
+        body { font-family: Arial; background: #121212; color: white; text-align: center; }
+        video { width: 80%; max-width: 800px; background: #000; border: 2px solid #333; margin-bottom: 20px; }
+        #linkContainer { display: none; background: #222; padding: 15px; border-radius: 8px; margin: 20px auto; width: 80%; max-width: 800px; }
+        input { width: 80%; padding: 10px; font-size: 16px; color: black; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #e50914; color: white; border: none; border-radius: 5px;}
     </style>
 </head>
 <body>
+    <h1>Yayıncı Paneli</h1>
+    <video id="liveVideo" autoplay muted playsinline></video>
+    <br>
+    <button id="startBtn">Yayını Başlat ve Link Oluştur</button>
 
-    <h1>Canlı Yayın Paneli</h1>
-    
-    <div class="video-container">
-        <!-- autoplay ve muted ekliyoruz çünkü yayıncının kendi sesini duymasına gerek yok -->
-        <video id="liveVideo" autoplay muted playsinline></video>
+    <div id="linkContainer">
+        <p>İzleyicilerin bu linkten yayına katılabilir:</p>
+        <input type="text" id="shareLink" readonly>
     </div>
 
-    <div class="controls">
-        <button id="startBtn">Kamerayı Aç / Yayına Başla</button>
-        <button id="stopBtn" disabled>Yayını Bitir</button>
-    </div>
-
-    <!-- JavaScript dosyamızı bağlıyoruz -->
     <script src="main.js"></script>
 </body>
 </html>
