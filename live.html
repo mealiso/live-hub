@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Hub - Stream Panel</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Modern Yazı Tipi (Inter) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #6366f1; /* Modern İndigo */
+            --primary: #6366f1; 
             --primary-hover: #4f46e5;
             --danger: #ef4444;
             --danger-hover: #dc2626;
@@ -32,7 +31,6 @@
         h1 { font-weight: 800; letter-spacing: -0.5px; margin-bottom: 20px; font-size: 2.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         h3 { font-weight: 600; margin-top: 0; color: #cbd5e1; }
 
-        /* Glassmorphism Panel Tasarımı */
         .glass-panel {
             background: var(--panel-bg);
             backdrop-filter: blur(12px);
@@ -47,7 +45,6 @@
             box-sizing: border-box;
         }
 
-        /* Dil Değiştirme Butonu */
         #langSwitcher { 
             position: fixed; top: 20px; right: 20px; z-index: 100; 
             background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
@@ -57,19 +54,17 @@
         }
         #langSwitcher:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
 
-        /* Video Alanı */
         .video-wrapper { position: relative; width: 100%; max-width: 800px; margin: 0 auto 30px auto; border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
         video { width: 100%; background: #000; border-radius: 16px; display: block; transition: transform 0.3s; object-fit: cover;}
         video.mirror { transform: scaleX(-1); }
         
-        /* İzleyici Sayacı ve Animasyonlu Kırmızı Nokta */
         .viewer-count { 
             position: absolute; top: 15px; right: 15px; 
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
             padding: 6px 16px; border-radius: 30px; font-weight: 600; 
             font-size: 14px; display: none; z-index: 10;
             border: 1px solid rgba(255,255,255,0.1);
-            display: none; align-items: center; gap: 6px;
+            align-items: center; gap: 6px;
         }
         .live-dot {
             width: 8px; height: 8px; background-color: var(--danger);
@@ -83,21 +78,26 @@
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
         
-        /* Form Elemanları */
+        /* Form Grubu (Yan yana hizalama için) */
+        .form-group { display: flex; flex-direction: column; text-align: left; margin-bottom: 15px; }
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap;}
+        .form-row .form-group { flex: 1; min-width: 150px; }
+
         select, input { 
-            width: 100%; padding: 12px 16px; margin: 10px 0 20px 0; font-size: 16px; 
+            width: 100%; padding: 12px 16px; margin-top: 5px; font-size: 14px; 
             border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); 
             background: rgba(0,0,0,0.3); color: white; outline: none;
             font-family: 'Inter', sans-serif; transition: border 0.3s;
+            box-sizing: border-box;
         }
         select:focus, input:focus { border-color: var(--primary); }
         select option { background: var(--bg-dark); color: white; }
+        label { color: #cbd5e1; font-size: 14px; font-weight: 600; }
         
-        /* Butonlar */
         .btn { 
             padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; 
             border-radius: 8px; font-weight: 600; transition: all 0.3s ease; 
-            font-family: 'Inter', sans-serif; letter-spacing: 0.5px;
+            font-family: 'Inter', sans-serif; letter-spacing: 0.5px; margin-top: 10px;
         }
         .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .btn:active:not(:disabled) { transform: translateY(0); }
@@ -106,22 +106,18 @@
         .btn-start { background: var(--primary); color: white; width: 100%; }
         .btn-start:hover { background: var(--primary-hover); }
 
-        /* Kontrol Paneli Butonları */
         #controlsPanel { display: none; margin-top: 15px; flex-wrap: wrap; justify-content: center; gap: 12px;}
-        .btn-toggle { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-toggle { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); margin:0;}
         .btn-toggle:hover { background: rgba(255,255,255,0.2); }
         .btn-toggle.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
-        
-        .btn-switch { background: #0284c7; color: white; }
+        .btn-switch { background: #0284c7; color: white; margin:0;}
         .btn-switch:hover { background: #0369a1; }
-        
-        .btn-stop { background: var(--danger); color: white; }
+        .btn-stop { background: var(--danger); color: white; margin:0;}
         .btn-stop:hover { background: var(--danger-hover); }
         
         #linkContainer { display: none; }
         #shareText { color: #cbd5e1; margin-bottom: 5px; }
         #shareLink { text-align: center; font-weight: bold; letter-spacing: 1px; color: #60a5fa; background: rgba(0,0,0,0.5);}
-
     </style>
 </head>
 <body>
@@ -134,21 +130,43 @@
     
     <div class="video-wrapper">
         <video id="liveVideo" autoplay muted playsinline></video>
-        <!-- Animasyonlu canlı yayın rozeti -->
         <div id="viewerBadge" class="viewer-count">
             <span class="live-dot"></span> 
-            <span id="viewerNumber">0</span> <span class="lang-viewers">Viewers</span>
+            <span id="viewerNumber">0</span> <span class="lang-viewers" style="margin-left: 4px;">Viewers</span>
         </div>
     </div>
     
-    <!-- AYARLAR PANELİ -->
+    <!-- YAYIN AYARLARI -->
     <div id="setupPanel" class="glass-panel">
         <h3 id="setupTitle">Stream Settings</h3>
-        <label id="labelSource" for="streamSource" style="display:block; text-align:left; color:#cbd5e1; margin-bottom:5px; font-size:14px;">Select Stream Type:</label>
-        <select id="streamSource">
-            <option value="camera" id="optCamera">Camera Stream</option>
-            <option value="screen" id="optScreen">Screen Share</option>
-        </select>
+        
+        <div class="form-group">
+            <label id="labelSource" for="streamSource">Select Stream Type:</label>
+            <select id="streamSource">
+                <option value="camera" id="optCamera">Camera Stream</option>
+                <option value="screen" id="optScreen">Screen Share</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label id="labelResolution" for="streamResolution">Video Quality:</label>
+                <select id="streamResolution">
+                    <option value="480" id="opt480">480p (Standard)</option>
+                    <option value="720" id="opt720" selected>720p (HD)</option>
+                    <option value="1080" id="opt1080">1080p (Full HD)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label id="labelFPS" for="streamFPS">Stream Fluidity (FPS):</label>
+                <select id="streamFPS">
+                    <option value="15" id="opt15fps">15 FPS (Save Data)</option>
+                    <option value="30" id="opt30fps" selected>30 FPS (Smooth)</option>
+                    <option value="60" id="opt60fps">60 FPS (Ultra Smooth)</option>
+                </select>
+            </div>
+        </div>
+
         <button id="startBtn" class="btn btn-start">Start Stream</button>
     </div>
 
@@ -166,7 +184,7 @@
         <input type="text" id="shareLink" readonly onclick="this.select()">
     </div>
 
-    <!-- Önbellek kırmak için v=6 yaptık -->
-    <script src="main.js?v=6"></script>
+    <!-- Önbellek kırmak için v=7 -->
+    <script src="main.js?v=7"></script>
 </body>
 </html>

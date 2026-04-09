@@ -6,6 +6,14 @@ const translations = {
         labelSource: "Select Stream Type:",
         optCamera: "Camera Stream",
         optScreen: "Screen Share",
+        labelResolution: "Video Quality:",
+        opt480: "480p (Standard)",
+        opt720: "720p (HD)",
+        opt1080: "1080p (Full HD)",
+        labelFPS: "Stream Fluidity (FPS):",
+        opt15fps: "15 FPS (Save Data)",
+        opt30fps: "30 FPS (Smooth)",
+        opt60fps: "60 FPS (Ultra Smooth)",
         startBtn: "Start Stream",
         shareText: "Your viewers can join using this link:",
         viewers: "Viewers",
@@ -18,8 +26,7 @@ const translations = {
         preparing: "Preparing...",
         errorAccess: "Access denied or cancelled.",
         confirmEnd: "Are you sure you want to end the stream?",
-        turning: "Switching...",
-        waiting: "Ready for viewers..."
+        turning: "Switching..."
     },
     tr: {
         mainTitle: "Yayıncı Paneli",
@@ -27,6 +34,14 @@ const translations = {
         labelSource: "Yayın Türünü Seçin:",
         optCamera: "Kamera ile Yayın",
         optScreen: "Ekran Paylaşımı",
+        labelResolution: "Video Kalitesi:",
+        opt480: "480p (Standart)",
+        opt720: "720p (HD)",
+        opt1080: "1080p (Full HD)",
+        labelFPS: "Yayın Akıcılığı (FPS):",
+        opt15fps: "15 FPS (Veri Tasarrufu)",
+        opt30fps: "30 FPS (Akıcı)",
+        opt60fps: "60 FPS (Çok Akıcı)",
         startBtn: "Yayını Başlat",
         shareText: "İzleyicilerin bu linkten yayına katılabilir:",
         viewers: "İzleyici",
@@ -39,8 +54,7 @@ const translations = {
         preparing: "Hazırlanıyor...",
         errorAccess: "Erişim reddedildi veya iptal edildi.",
         confirmEnd: "Yayını bitirmek istediğinize emin misiniz?",
-        turning: "Çevriliyor...",
-        waiting: "Yayın devam ediyor..."
+        turning: "Çevriliyor..."
     }
 };
 
@@ -50,6 +64,8 @@ let currentLang = localStorage.getItem('appLang') || 'en';
 const videoElement = document.getElementById('liveVideo');
 const setupPanel = document.getElementById('setupPanel');
 const streamSourceSelect = document.getElementById('streamSource');
+const streamResolutionSelect = document.getElementById('streamResolution');
+const streamFPSSelect = document.getElementById('streamFPS');
 const startBtn = document.getElementById('startBtn');
 const linkContainer = document.getElementById('linkContainer');
 const shareLinkInput = document.getElementById('shareLink');
@@ -58,7 +74,6 @@ const switchCameraBtn = document.getElementById('switchCameraBtn');
 const toggleVideoBtn = document.getElementById('toggleVideoBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const stopStreamBtn = document.getElementById('stopStreamBtn');
-const viewerBadge = document.getElementById('viewerBadge');
 
 // --- DİLİ UYGULA ---
 function applyLanguage() {
@@ -68,13 +83,18 @@ function applyLanguage() {
     document.getElementById('labelSource').innerText = t.labelSource;
     document.getElementById('optCamera').innerText = t.optCamera;
     document.getElementById('optScreen').innerText = t.optScreen;
+    document.getElementById('labelResolution').innerText = t.labelResolution;
+    document.getElementById('opt480').innerText = t.opt480;
+    document.getElementById('opt720').innerText = t.opt720;
+    document.getElementById('opt1080').innerText = t.opt1080;
+    document.getElementById('labelFPS').innerText = t.labelFPS;
+    document.getElementById('opt15fps').innerText = t.opt15fps;
+    document.getElementById('opt30fps').innerText = t.opt30fps;
+    document.getElementById('opt60fps').innerText = t.opt60fps;
     if (!startBtn.disabled) startBtn.innerText = t.startBtn;
     document.getElementById('shareText').innerText = t.shareText;
-    
-    // Sayaç metni
     document.querySelectorAll('.lang-viewers').forEach(el => el.innerText = t.viewers);
     
-    // Yayın içi butonlar
     if (!switchCameraBtn.disabled) switchCameraBtn.innerText = t.switchCamera;
     stopStreamBtn.innerText = t.endStream;
     
@@ -107,13 +127,27 @@ function updateMirrorEffect() {
 }
 
 function updateViewerCount() {
-    const count = activeDataConnections.length;
-    // Sadece sayıyı güncelliyoruz, animasyonlu nokta ve çeviri kısmı HTML'de kalıyor
-    document.getElementById('viewerNumber').innerText = count;
-    
+    document.getElementById('viewerNumber').innerText = activeDataConnections.length;
     activeDataConnections.forEach(conn => {
-        if (conn.open) conn.send({ type: 'VIEWER_COUNT', count: count });
+        if (conn.open) conn.send({ type: 'VIEWER_COUNT', count: activeDataConnections.length });
     });
+}
+
+// --- KALİTE VE FPS AYARLARINI HESAPLA ---
+function getVideoConstraints(facingMode) {
+    let res = streamResolutionSelect.value;
+    let fps = parseInt(streamFPSSelect.value);
+    
+    let width = 1280; let height = 720;
+    if(res === "480") { width = 640; height = 480; }
+    if(res === "1080") { width = 1920; height = 1080; }
+
+    return {
+        facingMode: facingMode,
+        width: { ideal: width },
+        height: { ideal: height },
+        frameRate: { ideal: fps }
+    };
 }
 
 // --- YAYINI BAŞLATMA ---
@@ -124,16 +158,23 @@ async function startStream() {
 
     try {
         if (currentMode === "camera") {
-            const constraints = { video: { facingMode: currentFacingMode }, audio: true };
+            const constraints = { 
+                video: getVideoConstraints(currentFacingMode), 
+                audio: true 
+            };
             try {
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
             } catch(e) {
+                // Eğer cihaz o kaliteyi desteklemiyorsa, varsayılanı dene
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             }
             switchCameraBtn.style.display = 'inline-block';
         } else {
+            // Ekran paylaşımında da FPS kuralı uygulayalım
+            let fps = parseInt(streamFPSSelect.value);
+            const displayConstraints = { video: { frameRate: { ideal: fps } }, audio: true };
             try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                localStream = await navigator.mediaDevices.getDisplayMedia(displayConstraints);
             } catch(e) {
                 localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             }
@@ -149,13 +190,10 @@ async function startStream() {
             const watchUrl = `https://mealiso.github.io/live-hub/watch.html?room=${id}`;
             shareLinkInput.value = watchUrl;
             
-            // Görsel geçişler
             setupPanel.style.display = 'none'; 
             linkContainer.style.display = 'block';
             controlsPanel.style.display = 'flex'; 
-            
-            // Flex ile canli nokta ve metni hizala
-            viewerBadge.style.display = 'flex';
+            document.getElementById('viewerBadge').style.display = 'flex';
         });
 
         peer.on('connection', (conn) => {
@@ -185,12 +223,14 @@ switchCameraBtn.addEventListener('click', async () => {
     switchCameraBtn.innerText = translations[currentLang].turning;
 
     try {
-        const newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
+        // Çevirirken de kullanıcının seçtiği kalite ayarlarını koruyoruz
+        const constraints = { video: getVideoConstraints(currentFacingMode) };
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
         const newVideoTrack = newStream.getVideoTracks()[0];
         const oldVideoTrack = localStream.getVideoTracks()[0];
         
         newVideoTrack.enabled = oldVideoTrack.enabled;
-
         oldVideoTrack.stop();
         localStream.removeTrack(oldVideoTrack);
         localStream.addTrack(newVideoTrack);
@@ -205,7 +245,7 @@ switchCameraBtn.addEventListener('click', async () => {
             }
         });
     } catch (err) {
-        alert("Camera error!");
+        alert("Camera switch failed!");
         currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
     } finally {
         switchCameraBtn.disabled = false;
@@ -238,6 +278,4 @@ stopStreamBtn.addEventListener('click', () => {
 });
 
 startBtn.addEventListener('click', startStream);
-
-// Sayfa yüklendiğinde varsayılan veya kaydedilmiş dili çalıştır
 applyLanguage();
