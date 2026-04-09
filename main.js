@@ -70,13 +70,14 @@ function applyLanguage() {
     document.getElementById('optScreen').innerText = t.optScreen;
     if (!startBtn.disabled) startBtn.innerText = t.startBtn;
     document.getElementById('shareText').innerText = t.shareText;
+    
+    // Sayaç metni
     document.querySelectorAll('.lang-viewers').forEach(el => el.innerText = t.viewers);
     
-    // Yayın içi butonlar (duruma göre değişebilir o yüzden fonksiyon içinde de kontrol edeceğiz)
+    // Yayın içi butonlar
     if (!switchCameraBtn.disabled) switchCameraBtn.innerText = t.switchCamera;
     stopStreamBtn.innerText = t.endStream;
     
-    // Görüntü ve Ses butonlarını mevcut durumuna göre güncelle
     const vTrack = localStream ? localStream.getVideoTracks()[0] : null;
     if (vTrack) toggleVideoBtn.innerText = vTrack.enabled ? t.muteVideo : t.unmuteVideo;
     else toggleVideoBtn.innerText = t.muteVideo;
@@ -107,7 +108,9 @@ function updateMirrorEffect() {
 
 function updateViewerCount() {
     const count = activeDataConnections.length;
-    viewerBadge.innerHTML = `👁️ ${count} <span class="lang-viewers">${translations[currentLang].viewers}</span>`;
+    // Sadece sayıyı güncelliyoruz, animasyonlu nokta ve çeviri kısmı HTML'de kalıyor
+    document.getElementById('viewerNumber').innerText = count;
+    
     activeDataConnections.forEach(conn => {
         if (conn.open) conn.send({ type: 'VIEWER_COUNT', count: count });
     });
@@ -122,25 +125,37 @@ async function startStream() {
     try {
         if (currentMode === "camera") {
             const constraints = { video: { facingMode: currentFacingMode }, audio: true };
-            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch(e) {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            }
             switchCameraBtn.style.display = 'inline-block';
         } else {
-            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            try {
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            } catch(e) {
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            }
             switchCameraBtn.style.display = 'none';
         }
 
         videoElement.srcObject = localStream;
         updateMirrorEffect(); 
-        applyLanguage(); // Buton metinlerini güncelle
+        applyLanguage(); 
 
         peer = new Peer(); 
         peer.on('open', (id) => {
             const watchUrl = `https://mealiso.github.io/live-hub/watch.html?room=${id}`;
             shareLinkInput.value = watchUrl;
+            
+            // Görsel geçişler
             setupPanel.style.display = 'none'; 
             linkContainer.style.display = 'block';
             controlsPanel.style.display = 'flex'; 
-            viewerBadge.style.display = 'block';
+            
+            // Flex ile canli nokta ve metni hizala
+            viewerBadge.style.display = 'flex';
         });
 
         peer.on('connection', (conn) => {
@@ -173,9 +188,13 @@ switchCameraBtn.addEventListener('click', async () => {
         const newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
         const newVideoTrack = newStream.getVideoTracks()[0];
         const oldVideoTrack = localStream.getVideoTracks()[0];
+        
+        newVideoTrack.enabled = oldVideoTrack.enabled;
+
         oldVideoTrack.stop();
         localStream.removeTrack(oldVideoTrack);
         localStream.addTrack(newVideoTrack);
+        
         videoElement.srcObject = localStream;
         updateMirrorEffect();
 
@@ -186,7 +205,8 @@ switchCameraBtn.addEventListener('click', async () => {
             }
         });
     } catch (err) {
-        alert("Error!");
+        alert("Camera error!");
+        currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
     } finally {
         switchCameraBtn.disabled = false;
         switchCameraBtn.innerText = translations[currentLang].switchCamera;
@@ -213,11 +233,11 @@ toggleAudioBtn.addEventListener('click', () => {
 
 stopStreamBtn.addEventListener('click', () => {
     if (confirm(translations[currentLang].confirmEnd)) {
-        location.reload(); // En temiz sıfırlama yolu
+        location.reload(); 
     }
 });
 
 startBtn.addEventListener('click', startStream);
 
-// Sayfa ilk açıldığında dili uygula
+// Sayfa yüklendiğinde varsayılan veya kaydedilmiş dili çalıştır
 applyLanguage();
