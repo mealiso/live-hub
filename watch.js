@@ -1,7 +1,7 @@
 const remoteVideo = document.getElementById('remoteVideo');
 const statusText = document.getElementById('status');
+const viewerBadge = document.getElementById('viewerBadge');
 
-// 1. URL'den "?room=XYZ" kısmındaki ID'yi alıyoruz
 const urlParams = new URLSearchParams(window.location.search);
 const broadcasterId = urlParams.get('room');
 
@@ -9,24 +9,39 @@ if (!broadcasterId) {
     statusText.innerText = "Hatalı veya eksik yayın linki!";
     statusText.style.color = "red";
 } else {
-    // 2. İzleyici olarak PeerJS'ye bağlanıyoruz
     const peer = new Peer();
 
     peer.on('open', () => {
-        // 3. Yayıncıya "Ben geldim" mesajı (bağlantısı) gönderiyoruz
-        peer.connect(broadcasterId);
         statusText.innerText = "Yayıncı bekleniyor...";
+        
+        // 1. Yayıncıyla bir Veri Bağlantısı (Mesajlaşma) kuruyoruz
+        const conn = peer.connect(broadcasterId);
+        
+        // Yayıncıdan bize bir veri (mesaj) geldiğinde...
+        conn.on('data', (data) => {
+            // Eğer gelen veri İZLEYİCİ SAYISI ise rozeti güncelle
+            if (data.type === 'VIEWER_COUNT') {
+                viewerBadge.style.display = 'block';
+                viewerBadge.innerText = `👁️ ${data.count} İzleyici`;
+            }
+        });
+
+        // Yayıncı yayını tamamen bitirirse (bağlantıyı kapatırsa)
+        conn.on('close', () => {
+            statusText.style.display = 'block';
+            statusText.innerText = "Yayın sona erdi.";
+            viewerBadge.style.display = 'none';
+            remoteVideo.srcObject = null;
+        });
     });
 
-    // 4. Yayıncı bizi fark edip videoyu gönderdiğinde çalışır
+    // 2. Yayıncı bize Kamera Görüntüsünü gönderdiğinde...
     peer.on('call', (call) => {
-        // Gelen aramayı kendi kameramız olmadan (boş) cevaplıyoruz
         call.answer(); 
         
-        // Yayıncının videosu ulaştığında ekrana basıyoruz
         call.on('stream', (remoteStream) => {
             remoteVideo.srcObject = remoteStream;
-            statusText.style.display = 'none'; // Yazıyı gizle
+            statusText.style.display = 'none'; 
         });
     });
 

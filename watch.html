@@ -4,18 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yayını İzle</title>
-    <!-- PeerJS Kütüphanesi -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: Arial; background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;}
-        video { width: 100%; max-width: 1000px; height: auto; }
+        .video-wrapper { position: relative; width: 100%; max-width: 1000px; }
+        video { width: 100%; height: auto; display: block; }
+        
+        /* İzleyici Sayacı Stili */
+        .viewer-count { position: absolute; top: 15px; right: 15px; background: rgba(229, 9, 20, 0.8); padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; display: none; z-index: 10;}
+        
         #status { margin-bottom: 20px; font-size: 18px; color: #aaa; }
     </style>
 </head>
 <body>
     <h2 id="status">Yayına bağlanılıyor...</h2>
-    <!-- İzleyicide sesi kısmıyoruz (muted yok) ve kontrolleri açıyoruz -->
-    <video id="remoteVideo" autoplay playsinline controls></video>
+    
+    <div class="video-wrapper">
+        <div id="viewerBadge" class="viewer-count">👁️ Bağlanılıyor...</div>
+        <video id="remoteVideo" autoplay playsinline controls></video>
+    </div>
 
     <script src="watch.js"></script>
 </body>
