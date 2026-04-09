@@ -1,52 +1,109 @@
+// --- DİL SÖZLÜĞÜ (TRANSLATIONS) ---
+const translations = {
+    en: {
+        viewers: "Viewers",
+        connecting: "Connecting to stream...",
+        waiting: "Waiting for broadcaster...",
+        ended: "The stream has ended.",
+        errorLink: "Invalid or missing stream link!",
+        offline: "Broadcaster is offline or stream ended."
+    },
+    tr: {
+        viewers: "İzleyici",
+        connecting: "Yayına bağlanılıyor...",
+        waiting: "Yayıncı bekleniyor...",
+        ended: "Yayın sona erdi.",
+        errorLink: "Hatalı veya eksik yayın linki!",
+        offline: "Yayıncıya ulaşılamadı veya yayın bitti."
+    }
+};
+
+let currentLang = localStorage.getItem('appLang') || 'en';
+let currentStatusKey = 'connecting'; // Ekrandaki yazının anlık durumunu tutar
+
 const remoteVideo = document.getElementById('remoteVideo');
-const statusText = document.getElementById('status');
+const statusTextElement = document.getElementById('statusText');
 const viewerBadge = document.getElementById('viewerBadge');
 
+// --- DİLİ UYGULA ---
+function applyLanguage() {
+    const t = translations[currentLang];
+    
+    // İzleyici kelimesini çevir
+    document.querySelectorAll('.lang-viewers').forEach(el => el.innerText = t.viewers);
+    
+    // Anlık durum metnini çevir (Eğer ekranda görünüyorsa)
+    if (statusTextElement.style.display !== 'none') {
+        statusTextElement.innerText = t[currentStatusKey];
+    }
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'en' ? 'tr' : 'en';
+    localStorage.setItem('appLang', currentLang);
+    applyLanguage();
+}
+
+// Durum metnini değiştiren ve çevirisini ayarlayan yardımcı fonksiyon
+function setStatus(key, isError = false) {
+    currentStatusKey = key;
+    statusTextElement.innerText = translations[currentLang][key];
+    statusTextElement.style.display = 'block';
+    if (isError) {
+        statusTextElement.style.color = '#ef4444'; // Kırmızı hata rengi
+    } else {
+        statusTextElement.style.color = '#cbd5e1'; // Normal gri renk
+    }
+}
+
+// URL'den Oda ID'sini Al
 const urlParams = new URLSearchParams(window.location.search);
 const broadcasterId = urlParams.get('room');
 
 if (!broadcasterId) {
-    statusText.innerText = "Hatalı veya eksik yayın linki!";
-    statusText.style.color = "red";
+    setStatus('errorLink', true);
 } else {
+    setStatus('connecting');
+
     const peer = new Peer();
 
     peer.on('open', () => {
-        statusText.innerText = "Yayıncı bekleniyor...";
+        setStatus('waiting');
         
-        // 1. Yayıncıyla bir Veri Bağlantısı (Mesajlaşma) kuruyoruz
+        // 1. Veri Bağlantısı (İzleyici Sayısı İçin)
         const conn = peer.connect(broadcasterId);
         
-        // Yayıncıdan bize bir veri (mesaj) geldiğinde...
         conn.on('data', (data) => {
-            // Eğer gelen veri İZLEYİCİ SAYISI ise rozeti güncelle
             if (data.type === 'VIEWER_COUNT') {
-                viewerBadge.style.display = 'block';
-                viewerBadge.innerText = `👁️ ${data.count} İzleyici`;
+                viewerBadge.style.display = 'flex';
+                document.getElementById('viewerNumber').innerText = data.count;
             }
         });
 
-        // Yayıncı yayını tamamen bitirirse (bağlantıyı kapatırsa)
         conn.on('close', () => {
-            statusText.style.display = 'block';
-            statusText.innerText = "Yayın sona erdi.";
+            setStatus('ended');
             viewerBadge.style.display = 'none';
             remoteVideo.srcObject = null;
         });
     });
 
-    // 2. Yayıncı bize Kamera Görüntüsünü gönderdiğinde...
+    // 2. Medya Bağlantısı (Görüntü İçin)
     peer.on('call', (call) => {
-        call.answer(); 
+        call.answer(); // Gelen yayını kabul et
         
         call.on('stream', (remoteStream) => {
             remoteVideo.srcObject = remoteStream;
-            statusText.style.display = 'none'; 
+            // Yayın başladığında durum yazısını gizle
+            statusTextElement.style.display = 'none'; 
         });
     });
 
     peer.on('error', (err) => {
         console.error(err);
-        statusText.innerText = "Yayıncıya ulaşılamadı. Yayın bitmiş olabilir.";
+        setStatus('offline', true);
+        viewerBadge.style.display = 'none';
     });
 }
+
+// Sayfa ilk yüklendiğinde dili uygula
+applyLanguage();

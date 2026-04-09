@@ -1,29 +1,92 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yayını İzle</title>
+    <title>Live Hub - Watch</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial; background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;}
-        .video-wrapper { position: relative; width: 100%; max-width: 1000px; }
-        video { width: 100%; height: auto; display: block; }
+        :root {
+            --primary: #6366f1; 
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #0f172a, #1e1b4b); 
+            color: var(--text-main); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
+        }
         
-        /* İzleyici Sayacı Stili */
-        .viewer-count { position: absolute; top: 15px; right: 15px; background: rgba(229, 9, 20, 0.8); padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; display: none; z-index: 10;}
+        /* Dil Değiştirme Butonu */
+        #langSwitcher { 
+            position: fixed; top: 20px; right: 20px; z-index: 100; 
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
+            padding: 8px 16px; border-radius: 30px; cursor: pointer; 
+            border: 1px solid var(--panel-border); font-weight: 600; 
+            display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; 
+        }
+        #langSwitcher:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
+
+        #statusText { 
+            margin-bottom: 20px; font-size: 20px; font-weight: 600; 
+            color: #cbd5e1; text-shadow: 0 2px 5px rgba(0,0,0,0.5); 
+            background: var(--panel-bg); padding: 10px 20px; border-radius: 8px;
+            backdrop-filter: blur(10px); border: 1px solid var(--panel-border);
+        }
+
+        .video-wrapper { position: relative; width: 100%; max-width: 1000px; border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        video { width: 100%; height: auto; background: #000; border-radius: 16px; display: block; border: 2px solid #333;}
         
-        #status { margin-bottom: 20px; font-size: 18px; color: #aaa; }
+        /* İzleyici Sayacı ve Animasyonlu Kırmızı Nokta */
+        .viewer-count { 
+            position: absolute; top: 15px; right: 15px; 
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            padding: 6px 16px; border-radius: 30px; font-weight: 600; 
+            font-size: 14px; display: none; z-index: 10;
+            border: 1px solid rgba(255,255,255,0.1);
+            align-items: center; gap: 6px;
+        }
+        .live-dot {
+            width: 8px; height: 8px; background-color: var(--danger);
+            border-radius: 50%; display: inline-block;
+            box-shadow: 0 0 8px var(--danger);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body>
-    <h2 id="status">Yayına bağlanılıyor...</h2>
+
+    <div id="langSwitcher" onclick="toggleLanguage()">
+        <span id="langIcon">🌐</span> <span id="langText">EN / TR</span>
+    </div>
+
+    <!-- Durum Metni -->
+    <h2 id="statusText">Connecting...</h2>
     
     <div class="video-wrapper">
-        <div id="viewerBadge" class="viewer-count">👁️ Bağlanılıyor...</div>
+        <!-- İzleyici Sayacı -->
+        <div id="viewerBadge" class="viewer-count">
+            <span class="live-dot"></span> 
+            <span id="viewerNumber">0</span> <span class="lang-viewers" style="margin-left: 4px;">Viewers</span>
+        </div>
+        
+        <!-- Video Oynatıcı -->
         <video id="remoteVideo" autoplay playsinline controls></video>
     </div>
 
-    <script src="watch.js"></script>
+    <!-- Önbellek kırmak için v=8 -->
+    <script src="watch.js?v=8"></script>
 </body>
 </html>
