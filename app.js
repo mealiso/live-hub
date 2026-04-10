@@ -10,6 +10,7 @@ const translations = {
         btnJoin: "Join Meeting",
         inviteText: "Invite others to join using this link (Click to copy):",
         you: "You",
+        guest: "Guest",
         connecting: "Connecting...",
         copied: "Link Copied!",
         camError: "Could not access camera/microphone.",
@@ -25,6 +26,7 @@ const translations = {
         btnJoin: "Toplantıya Katıl",
         inviteText: "Diğerlerini davet etmek için bu linki paylaşın (Kopyalamak için tıklayın):",
         you: "Sen",
+        guest: "Misafir",
         connecting: "Bağlanılıyor...",
         copied: "Link Kopyalandı!",
         camError: "Kamera veya mikrofona erişilemedi.",
@@ -43,6 +45,10 @@ const roomInput = document.getElementById('roomInput');
 const videoGrid = document.getElementById('videoGrid');
 const inviteLink = document.getElementById('inviteLink');
 
+// Buton İçindeki Metin Alanları (İkonları bozmamak için Span seçiyoruz)
+const btnCreateText = document.getElementById('btnCreateText');
+const btnJoinText = document.getElementById('btnJoinText');
+
 // Kontroller
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const toggleVideoBtn = document.getElementById('toggleVideoBtn');
@@ -55,11 +61,15 @@ function applyLanguage() {
     document.getElementById('titleText').innerText = t.titleText;
     document.getElementById('lobbyCreateTitle').innerText = t.lobbyCreateTitle;
     document.getElementById('lobbyCreateDesc').innerText = t.lobbyCreateDesc;
-    createMeetingBtn.innerText = t.btnCreate;
+    btnCreateText.innerText = t.btnCreate;
     document.getElementById('lobbyJoinTitle').innerText = t.lobbyJoinTitle;
     document.getElementById('lobbyJoinDesc').innerText = t.lobbyJoinDesc;
-    joinMeetingBtn.innerText = t.btnJoin;
+    btnJoinText.innerText = t.btnJoin;
     document.getElementById('inviteText').innerText = t.inviteText;
+    
+    // Griddeki kendi isim etiketimizi güncelle
+    const myBadge = document.querySelector(`#container-${myPeerId} .name-badge`);
+    if(myBadge) myBadge.innerText = t.you;
 }
 
 function toggleLanguage() {
@@ -75,14 +85,11 @@ let myPeerId;
 let isHost = false;
 let currentFacingMode = "user";
 
-// Peer listesi (Sadece Host yönetir)
 let peersInRoom = []; 
 let hostDataConnections = {}; 
-
-// Medya aramaları listesi (Herkes yönetir)
 const calls = {}; 
 
-// URL Kontrolü (Linkle mi gelindi?)
+// URL Kontrolü
 const urlParams = new URLSearchParams(window.location.search);
 const roomFromUrl = urlParams.get('room');
 
@@ -99,7 +106,6 @@ async function getMedia() {
         });
         myStream = stream;
         
-        // Eğer mobil cihazsa veya ön kamera açıksa, "Kamera Çevir" butonunu göster
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
             const caps = videoTrack.getCapabilities();
@@ -114,9 +120,8 @@ async function getMedia() {
     }
 }
 
-// --- KENDİ VİDEOMUZU GRİDE EKLEME ---
+// --- VİDEOYU GRİDE EKLEME ---
 function addVideoStream(video, stream, peerId, isMe = false) {
-    // Zaten ekliyse tekrar ekleme
     if (document.getElementById('container-' + peerId)) return;
 
     video.srcObject = stream;
@@ -124,7 +129,7 @@ function addVideoStream(video, stream, peerId, isMe = false) {
     video.playsInline = true;
     
     if (isMe) {
-        video.muted = true; // Kendi sesimizi yankı yapmasın diye kısıyoruz
+        video.muted = true; 
         if (currentFacingMode === "user") video.classList.add('mirror');
     }
 
@@ -134,16 +139,16 @@ function addVideoStream(video, stream, peerId, isMe = false) {
 
     const nameBadge = document.createElement('div');
     nameBadge.className = 'name-badge';
-    nameBadge.innerText = isMe ? translations[currentLang].you : "Guest";
+    nameBadge.innerText = isMe ? translations[currentLang].you : translations[currentLang].guest;
 
     wrapper.appendChild(video);
     wrapper.appendChild(nameBadge);
     videoGrid.appendChild(wrapper);
 }
 
-// --- BAŞKASINA BAĞLANMA (CALL) ---
+// --- BAŞKASINA BAĞLANMA ---
 function connectToNewUser(peerId, stream) {
-    if (peerId === myPeerId || calls[peerId]) return; // Kendimizi veya zaten bağlı olduğumuzu aramayalım
+    if (peerId === myPeerId || calls[peerId]) return; 
 
     const call = myPeer.call(peerId, stream);
     const video = document.createElement('video');
@@ -160,48 +165,45 @@ function connectToNewUser(peerId, stream) {
     calls[peerId] = call;
 }
 
-// --- LOBİDEN TOPLANTIYI BAŞLATMA (HOST) ---
+// --- HOST BAŞLATMA ---
 createMeetingBtn.addEventListener('click', async () => {
     createMeetingBtn.disabled = true;
-    createMeetingBtn.innerText = translations[currentLang].connecting;
+    btnCreateText.innerText = translations[currentLang].connecting;
 
     const hasMedia = await getMedia();
     if (!hasMedia) {
         createMeetingBtn.disabled = false;
-        createMeetingBtn.innerText = translations[currentLang].btnCreate;
+        btnCreateText.innerText = translations[currentLang].btnCreate;
         return;
     }
 
     isHost = true;
-    myPeer = new Peer(); // Rastgele ID alır
+    myPeer = new Peer(); 
 
     myPeer.on('open', id => {
         myPeerId = id;
         setupMeetingUI(id);
-        peersInRoom.push(id); // Host kendisini odaya ekler
+        peersInRoom.push(id); 
     });
 
     setupPeerEvents();
 });
 
-// --- LOBİDEN TOPLANTIYA KATILMA (GUEST) ---
+// --- GUEST KATILMA ---
 joinMeetingBtn.addEventListener('click', async () => {
     let hostIdToJoin = roomInput.value.trim();
-    
-    // Link olarak girildiyse sadece ID'yi al (örn: ?room=XYZ -> XYZ)
     if (hostIdToJoin.includes('?room=')) {
         hostIdToJoin = hostIdToJoin.split('?room=')[1];
     }
-
     if (!hostIdToJoin) return;
 
     joinMeetingBtn.disabled = true;
-    joinMeetingBtn.innerText = translations[currentLang].connecting;
+    btnJoinText.innerText = translations[currentLang].connecting;
 
     const hasMedia = await getMedia();
     if (!hasMedia) {
         joinMeetingBtn.disabled = false;
-        joinMeetingBtn.innerText = translations[currentLang].btnJoin;
+        btnJoinText.innerText = translations[currentLang].btnJoin;
         return;
     }
 
@@ -211,13 +213,10 @@ joinMeetingBtn.addEventListener('click', async () => {
         myPeerId = id;
         setupMeetingUI(hostIdToJoin);
 
-        // 1. Host'a "Ben Geldim" mesajı atıyoruz (Veri Kanalı)
         const conn = myPeer.connect(hostIdToJoin);
         conn.on('open', () => {
             conn.on('data', data => {
-                // Host bize odadaki diğer kişilerin listesini atar
                 if (data.type === 'PEER_LIST') {
-                    // Odadaki herkese (Host dahil) görüntümüzü yolluyoruz
                     data.peers.forEach(peerInRoom => {
                         connectToNewUser(peerInRoom, myStream);
                     });
@@ -229,12 +228,10 @@ joinMeetingBtn.addEventListener('click', async () => {
     setupPeerEvents();
 });
 
-// --- PEER OLAYLARI (HERKES İÇİN ORTAK) ---
+// --- PEER OLAYLARI ---
 function setupPeerEvents() {
-    
-    // Biri bizi ararsa (Görüntü/Ses gelirse)
     myPeer.on('call', call => {
-        call.answer(myStream); // Kendi görüntümüzle cevap veriyoruz
+        call.answer(myStream); 
         const video = document.createElement('video');
         
         call.on('stream', userVideoStream => {
@@ -249,18 +246,13 @@ function setupPeerEvents() {
         calls[call.peer] = call;
     });
 
-    // SADECE HOST İÇİN: Yeni biri veri bağlantısı kurduğunda (Odaya girdiğinde)
     myPeer.on('connection', conn => {
         if (isHost) {
             conn.on('open', () => {
-                // Yeni gelene, odadaki mevcut kişilerin listesini gönder
                 conn.send({ type: 'PEER_LIST', peers: peersInRoom });
-                
-                // Odaya yeni kişiyi kaydet
                 peersInRoom.push(conn.peer);
                 hostDataConnections[conn.peer] = conn;
             });
-
             conn.on('close', () => {
                 peersInRoom = peersInRoom.filter(p => p !== conn.peer);
                 delete hostDataConnections[conn.peer];
@@ -269,22 +261,20 @@ function setupPeerEvents() {
     });
 }
 
-// --- ARAYÜZÜ TOPLANTI MODUNA GEÇİR ---
+// --- ARAYÜZ DEĞİŞİMİ ---
 function setupMeetingUI(roomId) {
     lobbyScreen.style.display = 'none';
     meetingScreen.style.display = 'flex';
 
-    // Linki oluştur ve ekrana yaz
     const baseUrl = window.location.href.split('?')[0];
     const fullLink = `${baseUrl}?room=${roomId}`;
     inviteLink.innerText = fullLink;
 
-    // Kendi kameramızı gride ekle
     const myVideo = document.createElement('video');
     addVideoStream(myVideo, myStream, myPeerId, true);
 }
 
-// Link Kopyalama
+// --- LİNK KOPYALAMA ---
 window.copyInviteLink = function() {
     navigator.clipboard.writeText(inviteLink.innerText).then(() => {
         const originalText = inviteLink.innerText;
@@ -293,27 +283,30 @@ window.copyInviteLink = function() {
     });
 }
 
-// --- KONTROL BUTONLARI (SES/VİDEO/KAMERA) ---
+// --- MODERN KONTROL BUTONLARI ---
 
 toggleAudioBtn.addEventListener('click', () => {
     const audioTrack = myStream.getAudioTracks()[0];
+    const iconSpan = toggleAudioBtn.querySelector('.material-symbols-rounded');
     if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
-        toggleAudioBtn.classList.toggle('active');
-        toggleAudioBtn.innerText = audioTrack.enabled ? "🎤" : "🔇";
+        toggleAudioBtn.classList.toggle('off');
+        // Kapatıldığında üstü çizili mikrofona geç (mic_off)
+        iconSpan.innerText = audioTrack.enabled ? "mic" : "mic_off"; 
     }
 });
 
 toggleVideoBtn.addEventListener('click', () => {
     const videoTrack = myStream.getVideoTracks()[0];
+    const iconSpan = toggleVideoBtn.querySelector('.material-symbols-rounded');
     if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
-        toggleVideoBtn.classList.toggle('active');
-        toggleVideoBtn.innerText = videoTrack.enabled ? "📷" : "🚫";
+        toggleVideoBtn.classList.toggle('off');
+        // Kapatıldığında üstü çizili kameraya geç (videocam_off)
+        iconSpan.innerText = videoTrack.enabled ? "videocam" : "videocam_off";
     }
 });
 
-// Kamera Çevirme (Zoom tarzı, yayını kesmeden `replaceTrack` ile)
 switchCameraBtn.addEventListener('click', async () => {
     currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
     
@@ -325,13 +318,12 @@ switchCameraBtn.addEventListener('click', async () => {
         const newVideoTrack = newStream.getVideoTracks()[0];
         const oldVideoTrack = myStream.getVideoTracks()[0];
         
-        newVideoTrack.enabled = oldVideoTrack.enabled; // Kapalıysa kapalı kalır
+        newVideoTrack.enabled = oldVideoTrack.enabled; 
         
         oldVideoTrack.stop();
         myStream.removeTrack(oldVideoTrack);
         myStream.addTrack(newVideoTrack);
         
-        // Kendi videomuzu güncelle
         const myVideo = document.querySelector(`#container-${myPeerId} video`);
         if (myVideo) {
             myVideo.srcObject = myStream;
@@ -339,7 +331,6 @@ switchCameraBtn.addEventListener('click', async () => {
             else myVideo.classList.remove('mirror');
         }
 
-        // Diğer herkese giden görüntüyü değiştir
         Object.values(calls).forEach(call => {
             if (call.peerConnection) {
                 const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
@@ -352,12 +343,10 @@ switchCameraBtn.addEventListener('click', async () => {
     }
 });
 
-// Toplantıdan Ayrıl
 leaveMeetingBtn.addEventListener('click', () => {
     if (confirm(translations[currentLang].leaveConfirm)) {
-        location.href = window.location.href.split('?')[0]; // Parametresiz URL'e geri dön (sayfayı yeniler)
+        location.href = window.location.href.split('?')[0]; 
     }
 });
 
-// İlk Yüklemede Dili Uygula
 applyLanguage();

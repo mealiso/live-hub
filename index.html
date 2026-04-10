@@ -5,19 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Hub - Video Conference</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0" rel="stylesheet" />
     <style>
         :root {
             --primary: #4f46e5; 
             --primary-hover: #4338ca;
             --danger: #ef4444;
             --danger-hover: #dc2626;
+            --warning: #f59e0b;
             --bg-dark: #0f172a;
-            --panel-bg: rgba(30, 41, 59, 0.8);
-            --panel-border: rgba(255, 255, 255, 0.1);
+            --panel-bg: rgba(30, 41, 59, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.15);
             --text-main: #f8fafc;
+            --text-muted: #cbd5e1;
         }
 
+        /* Genel Ayarlar */
         body { 
             font-family: 'Inter', sans-serif; 
             background: linear-gradient(135deg, #0f172a, #1e1b4b); 
@@ -31,133 +35,196 @@
             box-sizing: border-box;
         }
         
-        h1 { font-weight: 800; font-size: 2.5rem; margin-bottom: 20px; text-align: center; }
+        h1 { font-weight: 800; font-size: clamp(2rem, 5vw, 2.5rem); margin-bottom: 20px; text-align: center; }
 
+        /* İkon Stilleri */
+        .material-symbols-rounded {
+            font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Dil ve Genel Üst Panel Ayarları */
+        #langSwitcher { 
+            position: fixed; top: 15px; right: 15px; z-index: 100; 
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px);
+            padding: 8px 16px; border-radius: 30px; cursor: pointer; 
+            border: 1px solid var(--panel-border); font-weight: 600; font-size: 14px;
+            display: flex; align-items: center; gap: 6px; transition: 0.3s; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        #langSwitcher:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
+
+        /* Glassmorphism Paneller */
         .glass-panel {
             background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 20px;
+            padding: clamp(20px, 5vw, 35px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
             width: 100%;
-            max-width: 500px;
+            max-width: 480px;
             text-align: center;
             box-sizing: border-box;
         }
 
-        #langSwitcher { 
-            position: fixed; top: 20px; right: 20px; z-index: 100; 
-            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
-            padding: 8px 16px; border-radius: 30px; cursor: pointer; 
-            border: 1px solid var(--panel-border); font-weight: 600; 
-            display: flex; align-items: center; gap: 8px; transition: 0.3s; 
-        }
-        #langSwitcher:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
-
-        /* Lobi Ekranı (Toplantı Kur / Katıl) */
+        /* Lobi Ekranı */
         #lobbyScreen { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; flex: 1; }
         .input-group { margin-bottom: 20px; width: 100%; text-align: left; }
-        .input-group label { display: block; margin-bottom: 8px; color: #cbd5e1; font-size: 14px; font-weight: 600;}
+        .input-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 14px; font-weight: 600;}
         input[type="text"] { 
-            width: 100%; padding: 12px 16px; font-size: 16px; 
-            border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); 
-            background: rgba(0,0,0,0.4); color: white; outline: none; box-sizing: border-box;
+            width: 100%; padding: 14px 16px; font-size: 16px; 
+            border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); 
+            background: rgba(0,0,0,0.4); color: white; outline: none; 
+            box-sizing: border-box; transition: 0.3s;
         }
-        input[type="text"]:focus { border-color: var(--primary); }
+        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3); }
 
+        /* Butonlar */
         .btn { 
-            padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; 
-            border-radius: 8px; font-weight: 600; transition: all 0.3s ease; 
-            width: 100%; margin-bottom: 10px;
+            padding: 14px 24px; font-size: 16px; cursor: pointer; border: none; 
+            border-radius: 10px; font-weight: 600; transition: all 0.3s ease; 
+            width: 100%; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; gap: 8px;
         }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .btn:active:not(:disabled) { transform: translateY(0); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
         .btn-secondary:hover { background: rgba(255,255,255,0.2); }
 
-        /* Toplantı Odası Ekranı (Zoom Grid) */
-        #meetingScreen { display: none; width: 100%; max-width: 1200px; flex-direction: column; align-items: center; }
+        /* Toplantı Ekranı */
+        #meetingScreen { display: none; width: 100%; max-width: 1400px; flex-direction: column; align-items: center; height: 100%;}
         
+        #invitePanel { 
+            background: rgba(0,0,0,0.4); padding: 12px 20px; border-radius: 12px; 
+            margin-bottom: 20px; width: 100%; text-align: center; border: 1px dashed #64748b;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        #inviteLink { color: #818cf8; font-weight: 600; word-break: break-all; cursor: pointer; transition: 0.2s;}
+        #inviteLink:hover { color: #a5b4fc; }
+
+        /* Dinamik Video Izgarası (Grid) */
         #videoGrid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
+            /* Ekran boyutuna göre otomatik kolon sayısı (min 280px genişlik) */
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+            gap: 16px;
             width: 100%;
-            margin-bottom: 80px; /* Alttaki kontroller için boşluk */
+            margin-bottom: 90px;
+            align-content: center;
         }
 
-        .video-container { position: relative; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.4); aspect-ratio: 16/9;}
-        .video-container video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .video-container { 
+            position: relative; border-radius: 16px; overflow: hidden; 
+            background: #000; box-shadow: 0 8px 25px rgba(0,0,0,0.5); 
+            aspect-ratio: 16/9; width: 100%;
+        }
+        .video-container video { width: 100%; height: 100%; object-fit: cover; display: block; background: #111;}
         .video-container video.mirror { transform: scaleX(-1); }
-        .name-badge { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; backdrop-filter: blur(4px);}
+        .name-badge { 
+            position: absolute; bottom: 12px; left: 12px; 
+            background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 8px; 
+            font-size: 13px; font-weight: 500; backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
 
-        /* Alt Kontrol Çubuğu */
+        /* Modern Kontrol Çubuğu */
         #controlsBar {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--panel-bg); backdrop-filter: blur(16px);
-            padding: 15px 25px; border-radius: 100px; border: 1px solid var(--panel-border);
-            display: flex; gap: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 50;
+            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px);
+            padding: 12px 20px; border-radius: 100px; border: 1px solid var(--panel-border);
+            display: flex; gap: 12px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); z-index: 50;
         }
         .control-btn {
-            width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer;
-            font-size: 20px; display: flex; align-items: center; justify-content: center;
-            transition: 0.3s; color: white; background: rgba(255,255,255,0.1);
+            width: 54px; height: 54px; border-radius: 50%; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease; color: white; background: rgba(255,255,255,0.1);
         }
-        .control-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
-        .control-btn.active { background: #f59e0b; color: #000; } /* Kapatıldığında turuncu */
+        .control-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-3px); }
+        
+        /* Aktif/Kapalı Durumları (İkonik Kırmızı/Turuncu Dönüşümleri) */
+        .control-btn.off { background: var(--warning); color: #1e1b4b; }
         .control-btn.danger { background: var(--danger); }
         .control-btn.danger:hover { background: var(--danger-hover); }
 
-        /* Toplantı Linki Alanı */
-        #invitePanel { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 12px; margin-bottom: 20px; width: 100%; text-align: center; border: 1px dashed #64748b;}
-        #inviteLink { color: #60a5fa; font-weight: bold; word-break: break-all; cursor: pointer; }
+        /* Mobil (Phone) Responsive Ayarları */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            #langSwitcher { top: 10px; right: 10px; padding: 6px 12px; font-size: 12px; }
+            .glass-panel { padding: 20px; border-radius: 16px; }
+            .btn { padding: 12px 16px; font-size: 15px; }
+            
+            /* Mobilde kontrolleri biraz küçült ve sığdır */
+            #controlsBar { padding: 10px 15px; gap: 10px; bottom: 15px; width: max-content; max-width: 95%;}
+            .control-btn { width: 48px; height: 48px; }
+            .control-btn .material-symbols-rounded { font-size: 22px; }
+            
+            /* Grid gap'i mobilde daralt */
+            #videoGrid { gap: 10px; margin-bottom: 80px;}
+        }
     </style>
 </head>
 <body>
 
     <div id="langSwitcher" onclick="toggleLanguage()">
-        <span id="langIcon">🌐</span> <span id="langText">EN / TR</span>
+        <span class="material-symbols-rounded" style="font-size: 18px;">language</span> 
+        <span id="langText">EN / TR</span>
     </div>
 
     <div id="lobbyScreen">
         <h1 id="titleText">Live Hub</h1>
         <div class="glass-panel">
-            <h2 id="lobbyCreateTitle" style="margin-top: 0;">Start a Meeting</h2>
-            <p id="lobbyCreateDesc" style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px;">Start a new video conference and invite others.</p>
-            <button id="createMeetingBtn" class="btn btn-primary">Start New Meeting</button>
+            <h2 id="lobbyCreateTitle" style="margin-top: 0; font-size: 1.5rem;">Start a Meeting</h2>
+            <p id="lobbyCreateDesc" style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">Start a new video conference and invite others.</p>
+            <button id="createMeetingBtn" class="btn btn-primary">
+                <span class="material-symbols-rounded">video_call</span>
+                <span id="btnCreateText">Start New Meeting</span>
+            </button>
             
-            <div style="margin: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1);"></div>
+            <div style="margin: 25px 0; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative;">
+                <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--bg-dark); padding: 0 10px; font-size: 12px; color: var(--text-muted); border-radius: 5px;">OR</span>
+            </div>
 
-            <h2 id="lobbyJoinTitle">Join a Meeting</h2>
+            <h2 id="lobbyJoinTitle" style="font-size: 1.5rem;">Join a Meeting</h2>
             <div class="input-group">
                 <label id="lobbyJoinDesc" for="roomInput">Meeting ID or Link:</label>
-                <input type="text" id="roomInput" placeholder="Paste ID here...">
+                <input type="text" id="roomInput" placeholder="Paste ID or Link here...">
             </div>
-            <button id="joinMeetingBtn" class="btn btn-secondary">Join Meeting</button>
+            <button id="joinMeetingBtn" class="btn btn-secondary">
+                <span class="material-symbols-rounded">login</span>
+                <span id="btnJoinText">Join Meeting</span>
+            </button>
         </div>
     </div>
 
     <div id="meetingScreen">
         
         <div id="invitePanel">
-            <div id="inviteText" style="margin-bottom: 8px; color: #cbd5e1;">Invite others to join using this link:</div>
-            <div id="inviteLink" onclick="copyInviteLink()">Generating link...</div>
+            <div id="inviteText" style="color: var(--text-muted); font-size: 14px;">Invite others to join using this link:</div>
+            <div id="inviteLink" onclick="copyInviteLink()" title="Click to copy">Generating link...</div>
         </div>
 
         <div id="videoGrid">
             </div>
 
         <div id="controlsBar">
-            <button id="toggleAudioBtn" class="control-btn" title="Mute/Unmute Audio">🎤</button>
-            <button id="toggleVideoBtn" class="control-btn" title="Turn Off/On Camera">📷</button>
-            <button id="switchCameraBtn" class="control-btn" title="Switch Front/Rear Camera" style="display: none;">🔄</button>
-            <button id="leaveMeetingBtn" class="control-btn danger" title="Leave Meeting">✖</button>
+            <button id="toggleAudioBtn" class="control-btn" title="Mute/Unmute">
+                <span class="material-symbols-rounded">mic</span>
+            </button>
+            <button id="toggleVideoBtn" class="control-btn" title="Turn Off/On Camera">
+                <span class="material-symbols-rounded">videocam</span>
+            </button>
+            <button id="switchCameraBtn" class="control-btn" title="Switch Camera" style="display: none;">
+                <span class="material-symbols-rounded">cameraswitch</span>
+            </button>
+            <button id="leaveMeetingBtn" class="control-btn danger" title="Leave Meeting">
+                <span class="material-symbols-rounded">call_end</span>
+            </button>
         </div>
     </div>
 
-    <script src="app.js?v=1"></script>
+    <script src="app.js?v=2"></script>
 </body>
 </html>
