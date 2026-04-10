@@ -21,7 +21,8 @@ const translations = {
         muteAll: "Mute All",
         chatPlaceholder: "Type a message...",
         host: "(Host)",
-        mutedByHost: "The Host has muted your microphone."
+        mutedByHost: "The Host has muted your microphone.",
+        closePanel: "Close Panel"
     },
     tr: {
         titleText: "Live Hub",
@@ -44,7 +45,8 @@ const translations = {
         muteAll: "Herkesi Sustur",
         chatPlaceholder: "Mesajınızı yazın...",
         host: "(Yönetici)",
-        mutedByHost: "Yönetici mikrofonunuzu kapattı."
+        mutedByHost: "Yönetici mikrofonunuzu kapattı.",
+        closePanel: "Paneli Kapat"
     }
 };
 
@@ -100,8 +102,12 @@ function applyLanguage() {
     
     tabBtnParticipants.innerText = t.tabParticipants;
     tabBtnChat.innerText = t.tabChat;
-    muteAllBtn.innerText = t.muteAll;
     chatInput.placeholder = t.chatPlaceholder;
+    muteAllBtn.innerHTML = `<span class="material-symbols-rounded">mic_off</span> ${t.muteAll}`;
+    
+    // Close panel span
+    const closeSpan = closeSidebarMobile.querySelectorAll('span')[1];
+    if(closeSpan) closeSpan.innerText = t.closePanel;
 
     updateVideoNames();
     renderParticipants();
@@ -119,18 +125,14 @@ let myStream;
 let myPeerId;
 let myUsername = "";
 let isHost = false;
-let hostId = null; // Bağlandığımız host'un ID'si
+let hostId = null; 
 let currentFacingMode = "user";
 
-// Merkez Veri Tabanı (Tüm İsimler Burada Tutar)
-// Format: { "id1": "Ahmet", "id2": "Mehmet" }
 let peersData = {}; 
-
-let hostDataConnections = {}; // Host'un konuklarla veri bağlantıları
-let myHostConnection = null;  // Konuğun Host ile veri bağlantısı
+let hostDataConnections = {}; 
+let myHostConnection = null;  
 const calls = {}; 
 
-// URL Kontrolü
 const urlParams = new URLSearchParams(window.location.search);
 const roomFromUrl = urlParams.get('room');
 if (roomFromUrl) roomInput.value = roomFromUrl;
@@ -192,51 +194,37 @@ function connectToNewUser(peerId, stream) {
     calls[peerId] = call;
 }
 
-// --- VERİ İLETİŞİMİ (MESAŞLAŞMA & KOMUTLAR) ---
-
+// --- VERİ İLETİŞİMİ ---
 function broadcastData(dataObj) {
     if (isHost) {
-        // Host ise herkese gönder
         Object.values(hostDataConnections).forEach(conn => {
             if (conn.open) conn.send(dataObj);
         });
     } else if (myHostConnection && myHostConnection.open) {
-        // Guest ise Host'a gönder (Host herkese dağıtacak)
         myHostConnection.send(dataObj);
     }
 }
 
-// Veri Geldiğinde İşlenecek Mantık
 function handleIncomingData(data, senderId) {
-    // 1. İsim Listesi Güncellemesi (Sadece Host -> Guest'e gönderir)
     if (data.type === 'SYNC_PEERS') {
         peersData = data.peersData;
         updateVideoNames();
         renderParticipants();
     }
     
-    // 2. Chat Mesajı
     if (data.type === 'CHAT') {
         appendChatMessage(data.senderName, data.text, data.senderId === myPeerId);
-        // Eğer Host isem ve başkasından mesaj geldiyse, diğer herkese ben de ileteyim (Router görevi)
-        if (isHost && senderId !== myPeerId) {
-            broadcastData(data);
-        }
+        if (isHost && senderId !== myPeerId) broadcastData(data);
     }
 
-    // 3. Yönetici (Host) Komutları (Susturma)
     if (data.type === 'CMD_MUTE') {
-        executeForceMute();
-    }
-}
-
-function executeForceMute() {
-    const audioTrack = myStream.getAudioTracks()[0];
-    if (audioTrack && audioTrack.enabled) {
-        audioTrack.enabled = false;
-        toggleAudioBtn.classList.add('off');
-        toggleAudioBtn.querySelector('.material-symbols-rounded').innerText = "mic_off";
-        alert(translations[currentLang].mutedByHost);
+        const audioTrack = myStream.getAudioTracks()[0];
+        if (audioTrack && audioTrack.enabled) {
+            audioTrack.enabled = false;
+            toggleAudioBtn.classList.add('off');
+            toggleAudioBtn.querySelector('.material-symbols-rounded').innerText = "mic_off";
+            alert(translations[currentLang].mutedByHost);
+        }
     }
 }
 
@@ -252,9 +240,9 @@ createMeetingBtn.addEventListener('click', async () => {
     myPeer = new Peer(); 
     myPeer.on('open', id => {
         myPeerId = id; hostId = id;
-        peersData[id] = myUsername; // Kendimizi ekliyoruz
+        peersData[id] = myUsername; 
         setupMeetingUI(id);
-        hostControls.style.display = 'block'; // Yöneticilik butonlarını aç
+        hostControls.style.display = 'flex'; // Yöneticilik butonlarını aç
         renderParticipants();
     });
 
@@ -279,14 +267,10 @@ joinMeetingBtn.addEventListener('click', async () => {
         peersData[id] = myUsername;
         setupMeetingUI(hostIdToJoin);
 
-        // Host ile Veri Kanalı Kur
         myHostConnection = myPeer.connect(hostIdToJoin);
         myHostConnection.on('open', () => {
-            // Host'a adımızı söylüyoruz
             myHostConnection.send({ type: 'GUEST_HELLO', name: myUsername });
-            
             myHostConnection.on('data', data => {
-                // Host bize odadakilerin listesini ve kamera bağlanma komutunu atar
                 if (data.type === 'CALL_LIST') {
                     data.list.forEach(pId => connectToNewUser(pId, myStream));
                 } else {
@@ -299,9 +283,8 @@ joinMeetingBtn.addEventListener('click', async () => {
     setupPeerEvents();
 });
 
-// --- PEER OLAYLARI (KAMERA & HOST VERİ DİNLEME) ---
+// --- PEER OLAYLARI ---
 function setupPeerEvents() {
-    // Kamera araması gelirse
     myPeer.on('call', call => {
         call.answer(myStream); 
         const video = document.createElement('video');
@@ -310,22 +293,16 @@ function setupPeerEvents() {
         calls[call.peer] = call;
     });
 
-    // SADECE HOST İÇİN: Biri veri kanalı kurarsa (Odaya girerse)
     myPeer.on('connection', conn => {
         if (isHost) {
             conn.on('open', () => {
                 hostDataConnections[conn.peer] = conn;
-                
                 conn.on('data', data => {
                     if (data.type === 'GUEST_HELLO') {
-                        // Yeni misafirin adını kaydet
                         peersData[conn.peer] = data.name;
-                        
-                        // Odaya yeni birinin girdiğini tüm listeyle birlikte herkese bildir (Senkronize)
                         broadcastData({ type: 'SYNC_PEERS', peersData: peersData });
                         updateVideoNames(); renderParticipants();
 
-                        // Yeni gelene, odadaki mevcut kişileri araması için listeyi gönder
                         const otherPeers = Object.keys(peersData).filter(p => p !== conn.peer);
                         conn.send({ type: 'CALL_LIST', list: otherPeers });
                     } else {
@@ -362,11 +339,12 @@ window.copyInviteLink = function() {
     });
 }
 
-// --- SIDEBAR VE CHAT FONKSİYONLARI ---
-
+// --- SIDEBAR VE CHAT ---
 function openSidebar(tab) {
     sidebar.style.display = 'flex';
-    sidebar.classList.add('open');
+    // Mobilde animasyonlu girmesi için ufak bir gecikme
+    setTimeout(() => { sidebar.classList.add('open'); }, 10);
+    
     if(tab === 'participants') {
         tabBtnParticipants.classList.add('active'); tabBtnChat.classList.remove('active');
         tabParticipants.classList.add('active'); tabChat.classList.remove('active');
@@ -399,14 +377,13 @@ closeSidebarMobile.addEventListener('click', closeSidebar);
 tabBtnParticipants.addEventListener('click', () => openSidebar('participants'));
 tabBtnChat.addEventListener('click', () => openSidebar('chat'));
 
-// Sohbet Gönderme
 function sendChat() {
     const text = chatInput.value.trim();
     if (!text) return;
     
     const msgObj = { type: 'CHAT', senderId: myPeerId, senderName: myUsername, text: text };
-    broadcastData(msgObj); // Herkese/Host'a gönder
-    appendChatMessage(myUsername, text, true); // Kendi ekranımıza ekle
+    broadcastData(msgObj); 
+    appendChatMessage(myUsername, text, true); 
     chatInput.value = "";
 }
 
@@ -418,10 +395,9 @@ function appendChatMessage(senderName, text, isMe) {
     box.className = `msg-box ${isMe ? 'me' : ''}`;
     box.innerHTML = `<div class="msg-author">${isMe ? translations[currentLang].you : senderName}</div><div>${text}</div>`;
     chatMessages.appendChild(box);
-    chatMessages.scrollTop = chatMessages.scrollHeight; // Otomatik aşağı kaydır
+    chatMessages.scrollTop = chatMessages.scrollHeight; 
 }
 
-// Katılımcılar Listesini Çizme ve Host Komutları
 function renderParticipants() {
     participantsList.innerHTML = '';
     
@@ -434,8 +410,6 @@ function renderParticipants() {
         item.className = 'participant-item';
         
         let html = `<span>${name}</span>`;
-        
-        // Eğer Host isek ve bu kişi biz değilsek, yanına Mute butonu ekle
         if (isHost && id !== myPeerId) {
             html += `<button class="mute-user-btn" onclick="muteSpecificUser('${id}')" title="Mute Audio"><span class="material-symbols-rounded" style="font-size: 18px;">mic_off</span></button>`;
         }
@@ -445,14 +419,10 @@ function renderParticipants() {
     });
 }
 
-// Host komutu (Tekil)
 window.muteSpecificUser = function(targetId) {
-    if (isHost && hostDataConnections[targetId]) {
-        hostDataConnections[targetId].send({ type: 'CMD_MUTE' });
-    }
+    if (isHost && hostDataConnections[targetId]) hostDataConnections[targetId].send({ type: 'CMD_MUTE' });
 }
 
-// Host komutu (Herkesi)
 muteAllBtn.addEventListener('click', () => {
     if (isHost) broadcastData({ type: 'CMD_MUTE' });
 });
@@ -506,5 +476,4 @@ leaveMeetingBtn.addEventListener('click', () => {
     if (confirm(translations[currentLang].leaveConfirm)) location.href = window.location.href.split('?')[0]; 
 });
 
-// Başlangıç
 applyLanguage();
