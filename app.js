@@ -23,24 +23,21 @@ function applyLanguage() {
     document.getElementById('btnJoinText').innerText = t.btnJoin;
 }
 
-function toggleLanguage() {
+window.toggleLanguage = function() {
     currentLang = currentLang === 'en' ? 'tr' : 'en';
     localStorage.setItem('appLang', currentLang);
     applyLanguage();
 }
 
-// URL'de oda linki varsa otomatik doldur
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('room')) {
     document.getElementById('roomInput').value = urlParams.get('room');
 }
 
-// ODA KUR (HOST)
 document.getElementById('createMeetingBtn').addEventListener('click', () => {
     const name = document.getElementById('usernameInput').value.trim();
     if (!name) return alert(translations[currentLang].nameRequired);
 
-    // Rastgele bir oda ID'si oluştur (WebRTC uyumlu basit ID)
     const roomId = 'hub-' + Math.random().toString(36).substr(2, 9);
     
     sessionStorage.setItem('hubUsername', name);
@@ -48,7 +45,6 @@ document.getElementById('createMeetingBtn').addEventListener('click', () => {
     window.location.href = `room.html?room=${roomId}`;
 });
 
-// ODAYA KATIL (GUEST)
 document.getElementById('joinMeetingBtn').addEventListener('click', () => {
     const name = document.getElementById('usernameInput').value.trim();
     if (!name) return alert(translations[currentLang].nameRequired);
